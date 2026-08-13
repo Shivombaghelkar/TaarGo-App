@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TAARGO APP - Secure Messaging</title>
+    <style>
+      :root {
+          --bg-color: #e5ddd5;
+          --chat-bg: #efeae2;
+          --header-bg: #00a884;
+          --text-color: #000;
+          --bubble-my: #dcf8c6;
+          --bubble-other: #ffffff;
+          --panel-bg: #f0f2f5;
+          --card-bg: #ffffff;
+      }
+      body.dark-mode {
+          --bg-color: #0b141a;
+          --chat-bg: #111b21;
+          --header-bg: #202c33;
+          --text-color: #e9edef;
+          --bubble-my: #005c4b;
+          --bubble-other: #202c33;
+          --panel-bg: #111b21;
+          --card-bg: #222d34;
+      }
+
+      body { margin: 0; padding-top: 60px; padding-bottom: 6rem; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: var(--bg-color); color: var(--text-color); transition: background 0.3s; }
+      #messages { list-style-type: none; margin: 0; padding: 15px; display: flex; flex-direction: column; gap: 12px; }
+      
+      .message-row { display: flex; gap: 8px; max-width: 70%; align-items: flex-end; }
+      .my-row { align-self: flex-end; flex-direction: row-reverse; }
+      .other-row { align-self: flex-start; }
+
+      .msg-dp { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; background: #00a884; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.8rem; flex-shrink: 0; }
+      .message-bubble { min-width: 90px; padding: 8px 30px 24px 12px; border-radius: 15px; position: relative; word-wrap: break-word; box-shadow: 0 1px 2px rgba(0,0,0,0.15); }
+      .my-message { background-color: var(--bubble-my); color: var(--text-color); border-top-right-radius: 0; }
+      .other-message { background-color: var(--bubble-other); color: var(--text-color); border-top-left-radius: 0; }
+      .username { font-size: 0.75em; color: #00a884; display: block; margin-bottom: 2px; font-weight: bold; }
+      .my-username { font-size: 0.75em; color: #888; display: block; margin-bottom: 2px; text-align: right; }
+      .msg-time { font-size: 0.65em; color: #888; position: absolute; bottom: 4px; right: 12px; }
+
+      #header { position: fixed; top: 0; left: 0; right: 0; background: var(--header-bg); color: white; padding: 8px 15px; display: flex; justify-content: space-between; align-items: center; z-index: 1000; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+      .header-profile { display: flex; align-items: center; gap: 12px; cursor: pointer; }
+      .header-dp { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; background: #111b21; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.95rem; }
+      .header-info { display: flex; flex-direction: column; }
+      .header-name { font-size: 1.1rem; font-weight: 600; color: #fff; }
+      .header-status { font-size: 0.75rem; color: #e9edef; opacity: 0.85; }
+      .header-right { display: flex; gap: 15px; align-items: center; }
+      .header-btn { background: none; border: none; color: white; font-size: 1.3rem; cursor: pointer; }
+
+      /* AUTH MODAL */
+      #auth-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(11, 20, 26, 0.9); display: flex; justify-content: center; align-items: center; z-index: 8000; }
+      .auth-box { background: #222d34; padding: 30px; border-radius: 16px; width: 340px; text-align: center; color: #e9edef; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.6); }
+      .auth-input { width: 100%; padding: 12px 15px; border-radius: 8px; border: none; background: #2a3942; color: white; font-size: 1rem; box-sizing: border-box; outline: none; }
+      .auth-btn { background: #00a884; color: white; border: none; padding: 11px; border-radius: 8px; font-size: 0.95rem; font-weight: bold; cursor: pointer; }
+      .auth-btn:hover { background: #029474; }
+      .dp-upload-label { cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 5px; font-size: 0.85rem; color: #8696a0; }
+      .dp-preview { width: 70px; height: 70px; border-radius: 50%; object-fit: cover; background: #2a3942; border: 2px dashed #00a884; }
+
+      /* SIDEBAR */
+      #sidebar-panel { position: fixed; top: 0; right: -350px; width: 330px; height: 100%; background: var(--panel-bg); z-index: 5000; box-shadow: -4px 0 15px rgba(0,0,0,0.2); transition: right 0.3s ease; display: flex; flex-direction: column; }
+      #sidebar-panel.open { right: 0; }
+      .sidebar-header { background: var(--header-bg); color: white; padding: 15px; display: flex; align-items: center; gap: 15px; font-weight: bold; }
+      .sidebar-body { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 15px; }
+      .sidebar-card { background: var(--card-bg); color: var(--text-color); border-radius: 8px; padding: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; flex-direction: column; gap: 8px; }
+      .sidebar-card h4 { margin: 0 0 5px 0; font-size: 0.95rem; color: #00a884; border-bottom: 1px solid rgba(0,0,0,0.08); padding-bottom: 5px; }
+      .setting-item { display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; padding: 6px 0; border-bottom: 1px solid rgba(0,0,0,0.05); cursor: pointer; }
+
+      /* FORM CONTAINER */
+      #form-container { background: var(--panel-bg); padding: 10px; position: fixed; bottom: 0; left: 0; right: 0; display: flex; flex-direction: column; z-index: 10; gap: 6px; }
+      .input-row { display: flex; gap: 8px; align-items: center; width: 100%; }
+      #input { border: none; padding: 10px 20px; flex-grow: 1; border-radius: 20px; font-size: 1rem; background: var(--card-bg); color: var(--text-color); }
+      #send-btn { background: #00a884; border: none; padding: 10px 16px; border-radius: 20px; color: #fff; font-weight: bold; cursor: pointer; }
+    </style>
+  </head>
+  <body>
+
+    <!-- AUTH MODAL -->
+    <div id="auth-modal">
+        <!-- 1. Login Box -->
+        <div class="auth-box" id="step-identifier-box">
+            <h2>TAARGO APP</h2>
+            <p>Login to your account</p>
+            <input type="text" id="auth-identifier" class="auth-input" placeholder="Phone or Email..." autocomplete="off" />
+            <input type="password" id="auth-password" class="auth-input" placeholder="Password..." autocomplete="off" />
+            <button class="auth-btn" onclick="requestOTP()">Login (Send OTP)</button>
+            <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-top: 5px;">
+                <span style="color: #00a884; cursor: pointer; text-decoration: underline;" onclick="showSignUp()">Create Account</span>
+                <span style="color: #00a884; cursor: pointer; text-decoration: underline;" onclick="showForgotPassword()">Forgot Password?</span>
+            </div>
+        </div>
+
+        <!-- 1.5 Sign-Up Box (New) -->
+        <div class="auth-box" id="step-signup-box" style="display:none;">
+            <h2>Create Account</h2>
+            <p>Sign up for TaarGo</p>
+            <input type="text" id="signup-name" class="auth-input" placeholder="Full Name..." autocomplete="off" />
+            <input type="text" id="signup-identifier" class="auth-input" placeholder="Phone or Email..." autocomplete="off" />
+            <input type="password" id="signup-password" class="auth-input" placeholder="Password..." autocomplete="off" />
+            <button class="auth-btn" onclick="requestRegister()">Sign Up & Send OTP</button>
+            <button class="auth-btn" onclick="backToMainLogin()" style="background: #667781;">← Back to Login</button>
+        </div>
+
+        <!-- 2. Login OTP Box -->
+        <div class="auth-box" id="step-otp-box" style="display:none;">
+            <h2>Verify OTP</h2>
+            <p id="otp-sent-msg">Enter verification code</p>
+            <input type="text" id="auth-otp" class="auth-input" placeholder="Enter OTP..." autocomplete="off" />
+            <button class="auth-btn" onclick="verifyAndLogin()">Verify & Login</button>
+            <button class="auth-btn" onclick="resendOTPCode()" style="background: #007bb5; margin-top: 5px;">Resend OTP</button>
+            <button class="auth-btn" onclick="goBackToLogin()" style="background: #667781; margin-top: 5px;">← Change ID / Back</button>
+        </div>
+
+        <!-- 3. Forgot Password Step 1 -->
+        <div class="auth-box" id="step-forgot-id-box" style="display:none;">
+            <h2>Reset Password</h2>
+            <p>Enter your registered ID or Phone</p>
+            <input type="text" id="forgot-identifier" class="auth-input" placeholder="Phone or Email..." autocomplete="off" />
+            <button class="auth-btn" onclick="requestForgotOTP()">Send Reset OTP</button>
+            <button class="auth-btn" onclick="backToMainLogin()" style="background: #667781;">← Back to Login</button>
+        </div>
+
+        <!-- 4. Forgot Password Step 2 -->
+        <div class="auth-box" id="step-forgot-reset-box" style="display:none;">
+            <h2>New Password</h2>
+            <p id="forgot-otp-msg">Enter OTP & New Password</p>
+            <input type="text" id="forgot-otp" class="auth-input" placeholder="Enter OTP..." autocomplete="off" />
+            <input type="password" id="forgot-new-password" class="auth-input" placeholder="New Password..." autocomplete="off" />
+            <button class="auth-btn" onclick="verifyAndResetPassword()">Update Password</button>
+            <button class="auth-btn" onclick="backToMainLogin()" style="background: #667781;">Cancel</button>
+        </div>
+
+        <!-- 5. Complete Profile Box -->
+        <div class="auth-box" id="step-profile-box" style="display:none;">
+            <h2>Complete Profile</h2>
+            <label class="dp-upload-label">
+                <img id="dp-preview-img" class="dp-preview" src="" alt="DP" />
+                <span>Click to upload DP</span>
+                <input type="file" id="dp-file-input" style="display:none;" accept="image/*" onchange="previewDP(this)">
+            </label>
+            <input type="text" id="auth-name" class="auth-input" placeholder="Your Full Name..." autocomplete="off" />
+            <button class="auth-btn" onclick="saveProfileAndStart()">Start Messaging</button>
+        </div>
+    </div>
+
+    <!-- SIDEBAR -->
+    <div id="sidebar-panel">
+        <div class="sidebar-header">
+            <button onclick="toggleSidebar()" style="background:none;border:none;color:white;font-size:1.2rem;cursor:pointer;">✕</button>
+            <span>Settings & Features</span>
+        </div>
+        <div class="sidebar-body">
+            <div class="sidebar-card">
+                <h4>👤 Profile Settings</h4>
+                <div class="setting-item" onclick="openProfileEdit()" style="color:#00a884; font-weight:bold;"><span>Edit Profile</span> <span>✏️</span></div>
+            </div>
+            <div class="sidebar-card">
+                <h4>👥 Groups</h4>
+                <div class="setting-item" onclick="switchGroup('General')"><span># General Chat</span></div>
+                <div class="setting-item" onclick="switchGroup('Techies')"><span># Tech Geeks</span></div>
+                <div class="setting-item" onclick="switchGroup('Friends')"><span># Close Friends</span></div>
+            </div>
+            <div class="sidebar-card">
+                <h4>🌙 Appearance</h4>
+                <div class="setting-item" onclick="toggleDarkMode()"><span>Dark Mode</span> <span id="dark-status" style="font-weight:bold; color:#00a884;">Off</span></div>
+            </div>
+            <div class="sidebar-card">
+                <h4>🔒 Account Control</h4>
+                <div class="setting-item" onclick="logoutUser()" style="color:#00a884; font-weight:bold;"><span>Logout</span> <span>🚪</span></div>
+                <div class="setting-item" onclick="deleteAccount()" style="color:#d32f2f; font-weight:bold;"><span>Delete Account</span> <span>⚠️</span></div>
+            </div>
+            <div class="sidebar-card">
+                <h4>⚙️ Chat Settings</h4>
+                <div class="setting-item" onclick="clearAllChats()" style="color: #d32f2f; font-weight:bold;"><span>Clear Chat</span> <span>🗑️</span></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- HEADER -->
+    <div id="header">
+        <div class="header-profile" onclick="toggleSidebar()">
+            <div id="header-dp-container"></div>
+            <div class="header-info">
+                <span id="header-username" class="header-name">TAARGO APP</span>
+                <span id="header-group-tag" class="header-status"># General</span>
+            </div>
+        </div>
+        <div class="header-right">
+            <button class="header-btn" onclick="toggleSidebar()">⚙️</button>
+        </div>
+    </div>
+
+    <ul id="messages">
+        <li class="e2e-badge">🔒 End-to-end encrypted group chat on TaarGo.</li>
+    </ul>
+
+    <form id="form-container" action="">
+      <div class="input-row">
+          <input id="input" autocomplete="off" placeholder="Type a message..." />
+          <button type="submit" id="send-btn">Send</button>
+      </div>
+    </form>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+
+    <script>
+      let currentUser = JSON.parse(localStorage.getItem('taargo_user')) || null;
+      let currentGroup = 'General';
+      let tempIdentifier = "";
+      let tempPassword = "";
+      let uploadedDpUrl = "";
+      let socket;
+
+      const SECRET_KEY = "taargo_super_secret_e2e_key";
+      function encryptMessage(text) { return CryptoJS.AES.encrypt(text, SECRET_KEY).toString(); }
+      function decryptMessage(cipher) {
+          try {
+              let bytes = CryptoJS.AES.decrypt(cipher, SECRET_KEY);
+              return bytes.toString(CryptoJS.enc.Utf8) || cipher;
+          } catch(e) { return cipher; }
+      }
+
+      if (currentUser) {
+          document.getElementById('auth-modal').style.display = 'none';
+          updateHeaderProfile();
+          initApp();
+      }
+
+      function updateHeaderProfile() {
+          if (currentUser) {
+              const dpContainer = document.getElementById('header-dp-container');
+              dpContainer.innerHTML = currentUser.dpUrl ? `<img class="header-dp" src="${currentUser.dpUrl}" />` : `<div class="header-dp">${currentUser.name.charAt(0)}</div>`;
+              document.getElementById('header-username').innerText = currentUser.name;
+          }
+      }
+
+      function showSignUp() {
+          document.getElementById('step-identifier-box').style.display = 'none';
+          document.getElementById('step-signup-box').style.display = 'flex';
+      }
+
+      function backToMainLogin() {
+          document.getElementById('step-signup-box').style.display = 'none';
+          document.getElementById('step-forgot-id-box').style.display = 'none';
+          document.getElementById('step-forgot-reset-box').style.display = 'none';
+          document.getElementById('step-identifier-box').style.display = 'flex';
+      }
+
+      async function requestRegister() {
+          let name = document.getElementById('signup-name').value.trim();
+          tempIdentifier = document.getElementById('signup-identifier').value.trim();
+          tempPassword = document.getElementById('signup-password').value.trim();
+
+          if (!name || !tempIdentifier || !tempPassword) {
+              alert("Please fill all fields!");
+              return;
+          }
+
+          try {
+              const res = await fetch('/register', {
+                  method: 'POST',
+                  headers: {'Content-Type': 'application/json'},
+                  body: JSON.stringify({ identifier: tempIdentifier, password: tempPassword, name: name })
+              });
+              const data = await res.json();
+
+              if(data.success) {
+                  document.getElementById('step-signup-box').style.display = 'none';
+                  document.getElementById('step-otp-box').style.display = 'flex';
+                  document.getElementById('otp-sent-msg').innerText = `OTP sent to ${tempIdentifier} (Check Server Console)`;
+              } else {
+                  alert(data.message || "Registration error!");
+              }
+          } catch(err) {
+              console.error("Register Error:", err);
+              alert("Network error.");
+          }
+      }
+
+      async function requestOTP() {
+          tempIdentifier = document.getElementById('auth-identifier').value.trim();
+          tempPassword = document.getElementById('auth-password').value.trim();
+          
+          if (!tempIdentifier || !tempPassword) {
+              alert("Please enter both ID/Phone and Password!");
+              return;
+          }
+
+          try {
+              const res = await fetch('/send-otp', {
+                  method: 'POST',
+                  headers: {'Content-Type': 'application/json'},
+                  body: JSON.stringify({ identifier: tempIdentifier, password: tempPassword })
+              });
+              const data = await res.json();
+              
+              if(data.success) {
+                  document.getElementById('step-identifier-box').style.display = 'none';
+                  document.getElementById('step-otp-box').style.display = 'flex';
+                  document.getElementById('otp-sent-msg').innerText = `OTP sent to ${tempIdentifier} (Check Server Console)`;
+              } else {
+                  alert(data.message || "Login error!");
+              }
+          } catch(err) {
+              console.error("OTP Request Error:", err);
+              alert("Network error. Check if server is running.");
+          }
+      }
+
+      async function resendOTPCode() {
+          if (!tempIdentifier) {
+              alert("No identifier found!");
+              return;
+          }
+          try {
+              const res = await fetch('/resend-otp', {
+                  method: 'POST',
+                  headers: {'Content-Type': 'application/json'},
+                  body: JSON.stringify({ identifier: tempIdentifier })
+              });
+              const data = await res.json();
+              if (data.success) {
+                  alert("OTP resent successfully! Check your email.");
+              } else {
+                  alert(data.message || "Failed to resend OTP.");
+              }
+          } catch (err) {
+              console.error("Resend OTP Error:", err);
+              alert("Network error.");
+          }
+      }
+
+      function goBackToLogin() {
+          document.getElementById('step-otp-box').style.display = 'none';
+          document.getElementById('step-identifier-box').style.display = 'flex';
+          document.getElementById('auth-otp').value = "";
+      }
+
+      function showForgotPassword() {
+          document.getElementById('step-identifier-box').style.display = 'none';
+          document.getElementById('step-forgot-id-box').style.display = 'flex';
+      }
+
+      async function requestForgotOTP() {
+          tempIdentifier = document.getElementById('forgot-identifier').value.trim();
+          if (!tempIdentifier) {
+              alert("Please enter your registered ID or Phone!");
+              return;
+          }
+
+          try {
+              const res = await fetch('/forgot-password-request', {
+                  method: 'POST',
+                  headers: {'Content-Type': 'application/json'},
+                  body: JSON.stringify({ identifier: tempIdentifier })
+              });
+              const data = await res.json();
+
+              if(data.success) {
+                  document.getElementById('step-forgot-id-box').style.display = 'none';
+                  document.getElementById('step-forgot-reset-box').style.display = 'flex';
+                  document.getElementById('forgot-otp-msg').innerText = `OTP sent to ${tempIdentifier} (Check Server Console)`;
+              } else {
+                  alert(data.message || "User not found!");
+              }
+          } catch(err) {
+              console.error("Forgot OTP Error:", err);
+              alert("Network error.");
+          }
+      }
+
+      async function verifyAndResetPassword() {
+          let otp = document.getElementById('forgot-otp').value.trim();
+          let newPassword = document.getElementById('forgot-new-password').value.trim();
+
+          if (!otp || !newPassword) {
+              alert("Please enter OTP and New Password!");
+              return;
+          }
+
+          try {
+              const res = await fetch('/reset-password', {
+                  method: 'POST',
+                  headers: {'Content-Type': 'application/json'},
+                  body: JSON.stringify({ identifier: tempIdentifier, otp: otp, newPassword: newPassword })
+              });
+              const data = await res.json();
+
+              if(data.success) {
+                  alert("Password updated successfully! Please login with your new password.");
+                  backToMainLogin();
+                  document.getElementById('auth-identifier').value = tempIdentifier;
+                  document.getElementById('auth-password').value = "";
+              } else {
+                  alert(data.message || "Invalid OTP or error!");
+              }
+          } catch(err) {
+              console.error("Reset Password Error:", err);
+              alert("Error resetting password.");
+          }
+      }
+
+      async function verifyAndLogin() {
+          let otp = document.getElementById('auth-otp').value.trim();
+          if (!otp) {
+              alert("Please enter the OTP!");
+              return;
+          }
+
+          try {
+              const res = await fetch('/verify-login', {
+                  method: 'POST',
+                  headers: {'Content-Type': 'application/json'},
+                  body: JSON.stringify({ identifier: tempIdentifier, password: tempPassword, otp: otp })
+              });
+              const data = await res.json();
+
+              if(data.success) {
+                  currentUser = data.user;
+                  localStorage.setItem('taargo_user', JSON.stringify(currentUser));
+                  
+                  document.getElementById('step-otp-box').style.display = 'none';
+                  document.getElementById('step-profile-box').style.display = 'flex';
+                  document.getElementById('auth-name').value = currentUser.name !== "User" ? currentUser.name : "";
+                  if(currentUser.dpUrl) {
+                      document.getElementById('dp-preview-img').src = currentUser.dpUrl;
+                      uploadedDpUrl = currentUser.dpUrl;
+                  }
+              } else {
+                  alert(data.message || "Invalid OTP!");
+              }
+          } catch(err) {
+              console.error("Verify Login Error:", err);
+              alert("Error during verification.");
+          }
+      }
+
+      async function previewDP(input) {
+          if (input.files && input.files[0]) {
+              const formData = new FormData();
+              formData.append('file', input.files[0]);
+              const res = await fetch('/upload', { method: 'POST', body: formData });
+              const data = await res.json();
+              if (data.url) {
+                  uploadedDpUrl = data.url;
+                  document.getElementById('dp-preview-img').src = data.url;
+              }
+          }
+      }
+
+      async function saveProfileAndStart() {
+          let name = document.getElementById('auth-name').value.trim() || (currentUser ? currentUser.name : "User");
+          let id = tempIdentifier || (currentUser ? currentUser.phoneOrEmail : "");
+          
+          try {
+              const res = await fetch('/update-profile', { 
+                  method: 'POST', 
+                  headers: {'Content-Type': 'application/json'}, 
+                  body: JSON.stringify({ identifier: id, name, dpUrl: uploadedDpUrl }) 
+              });
+              const data = await res.json();
+              if(data.success) {
+                  currentUser = data.user;
+                  localStorage.setItem('taargo_user', JSON.stringify(currentUser));
+                  document.getElementById('auth-modal').style.display = 'none';
+                  updateHeaderProfile();
+                  if(!socket) initApp();
+                  else location.reload();
+              } else {
+                  alert(data.message || "Failed to save profile.");
+              }
+          } catch(err) {
+              console.error("Profile Save Error:", err);
+              alert("Error saving profile.");
+          }
+      }
+
+      function openProfileEdit() {
+          toggleSidebar();
+          document.getElementById('step-identifier-box').style.display = 'none';
+          document.getElementById('step-signup-box').style.display = 'none';
+          document.getElementById('step-otp-box').style.display = 'none';
+          document.getElementById('step-profile-box').style.display = 'flex';
+          if(currentUser) {
+              tempIdentifier = currentUser.phoneOrEmail;
+              document.getElementById('auth-name').value = currentUser.name || "";
+              if(currentUser.dpUrl) {
+                  document.getElementById('dp-preview-img').src = currentUser.dpUrl;
+                  uploadedDpUrl = currentUser.dpUrl;
+              }
+          }
+          document.getElementById('auth-modal').style.display = 'flex';
+      }
+
+      function logoutUser() { localStorage.removeItem('taargo_user'); location.reload(); }
+
+      async function deleteAccount() {
+          if (confirm("Permanently delete your account?")) {
+              await fetch('/delete-account', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ identifier: currentUser.phoneOrEmail }) });
+              logoutUser();
+          }
+      }
+
+      function initApp() {
+          socket = io();
+          socket.emit('join group', currentGroup);
+          socket.on('load old messages', (msgs) => msgs.forEach(appendMessage));
+          socket.on('chat message', appendMessage);
+          socket.on('chat cleared', () => document.getElementById('messages').innerHTML = '<li class="e2e-badge">🔒 Chat cleared</li>');
+      }
+
+      function toggleDarkMode() {
+          document.body.classList.toggle('dark-mode');
+          let isDark = document.body.classList.contains('dark-mode');
+          document.getElementById('dark-status').innerText = isDark ? "On" : "Off";
+      }
+
+      function switchGroup(group) {
+          currentGroup = group;
+          document.getElementById('header-group-tag').innerText = "# " + group;
+          document.getElementById('messages').innerHTML = `<li class="e2e-badge">🔒 Joined group: #${group}</li>`;
+          socket.emit('join group', group);
+          toggleSidebar();
+      }
+
+      const form = document.getElementById('form-container');
+      const input = document.getElementById('input');
+      const messages = document.getElementById('messages');
+
+      form.addEventListener('submit', (e) => {
+          e.preventDefault();
+          if(input.value) {
+              let encryptedText = encryptMessage(input.value);
+              socket.emit('chat message', { group: currentGroup, user: currentUser.name, dpUrl: currentUser.dpUrl, text: encryptedText });
+              input.value = '';
+          }
+      });
+
+      function appendMessage(data) {
+          if(data.group && data.group !== currentGroup) return;
+          var item = document.getElementById(data._id) || document.createElement('li');
+          item.id = data._id;
+          var isMine = (data.user === currentUser.name);
+          var decryptedText = decryptMessage(data.text);
+
+          item.className = isMine ? 'message-row my-row' : 'message-row other-row';
+          item.innerHTML = (data.dpUrl ? `<img class="msg-dp" src="${data.dpUrl}">` : `<div class="msg-dp">${data.user.charAt(0)}</div>`) + `
+              <div class="message-bubble ${isMine ? 'my-message' : 'other-message'}">
+                  <span class="${isMine ? 'my-username' : 'username'}">${data.user}</span>
+                  ${decryptedText}
+              </div>`;
+          
+          if (!document.getElementById(data._id)) {
+              messages.appendChild(item);
+              window.scrollTo(0, document.body.scrollHeight);
+          }
+      }
+
+      async function clearAllChats() { await fetch('/clear-chat', { method: 'POST' }); toggleSidebar(); }
+      function toggleSidebar() { document.getElementById('sidebar-panel').classList.toggle('open'); }
+    </script>
+  </body>
+</html>
